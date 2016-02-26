@@ -1,12 +1,30 @@
 # SampleApp
 
+import("//testing/test.gni")
+
 executable("sample_app") {
   output_name = "sample_app"
   sources = [
     "sample_app.cc",
+    "sample_api.cc",
+    "sample_api.h",
   ]
 
   deps = [
-    "//base"
+    "//base",
+  ]
+}
+
+test("sample_app_unittests") {
+  sources = [
+    # TODO: Extract these API files as a library.
+    "sample_api.cc",
+    "sample_api.h",
+    "sample_api_unittest.cc",
+  ]
+
+  deps = [
+    "//base/test:run_all_unittests",
+    "//testing/gtest",
   ]
 }
