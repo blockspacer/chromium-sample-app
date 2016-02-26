@@ -2,7 +2,9 @@
 #include <string>
 
 #include "base/command_line.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
 
@@ -62,6 +64,24 @@ void LoggingSample() {
   }
 }
 
+void FilesSample() {
+  base::FilePath current_dir;
+  CHECK(base::GetCurrentDirectory(&current_dir));
+
+  std::cout << "Enumerating files and directories in path: "
+            << current_dir.AsUTF8Unsafe() << std::endl;
+
+  base::FileEnumerator file_enumerator(
+      current_dir, false,
+      base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES);
+  for (base::FilePath name = file_enumerator.Next(); !name.empty();
+       name = file_enumerator.Next()) {
+    std::cout << (file_enumerator.GetInfo().IsDirectory()
+        ? "[dir ] "
+        : "[file] ") << name.AsUTF8Unsafe() << std::endl;
+  }
+}
+
 }  // namespace
 
 int main(int argc, const char* argv[]) {
@@ -73,6 +93,7 @@ int main(int argc, const char* argv[]) {
   StringsSample();
   CommandLineSample();
   LoggingSample();
+  FilesSample();
 
   return 0;
 }
