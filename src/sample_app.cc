@@ -7,6 +7,7 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
+#include "sample_app/src/sample_api.h"
 
 namespace {
 
@@ -82,6 +83,12 @@ void FilesSample() {
   }
 }
 
+void UseSampleAPI() {
+  if (sample_api::CallApiFunction()) {
+    std::cout << "Magick!" << std::endl;
+  }
+}
+
 }  // namespace
 
 int main(int argc, const char* argv[]) {
@@ -94,6 +101,7 @@ int main(int argc, const char* argv[]) {
   CommandLineSample();
   LoggingSample();
   FilesSample();
+  UseSampleAPI();
 
   return 0;
 }
