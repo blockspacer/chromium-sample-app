@@ -19,6 +19,9 @@ void StringsSample() {
 void CommandLineSample() {
   using base::CommandLine;
 
+  DCHECK(CommandLine::ForCurrentProcess())
+      << "Command line for process wasn't initialized.";
+
   const CommandLine& command_line = *CommandLine::ForCurrentProcess();
 
   std::cout << "Application program name is "
