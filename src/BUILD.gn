@@ -1,0 +1,8 @@
+# SampleApp
+
+executable("sample_app") {
+  output_name = "sample_app"
+  sources = [
+    "sample_app.cc",
+  ]
+}
