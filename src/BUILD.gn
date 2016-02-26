@@ -5,4 +5,8 @@ executable("sample_app") {
   sources = [
     "sample_app.cc",
   ]
+
+  deps = [
+    "//base"
+  ]
 }
