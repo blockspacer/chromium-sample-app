@@ -37,6 +37,31 @@ void CommandLineSample() {
   }
 }
 
+void LoggingSample() {
+  logging::LoggingSettings settings;
+
+  // Set log to STDERR on POSIX or to OutputDebugString on Windows.
+  settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
+  CHECK(logging::InitLogging(settings));
+
+  // Log messages visible by default.
+  LOG(INFO) << "This is INFO log message.";
+  LOG(WARNING) << "This is WARNING log message.";
+
+  // Verbose log messages, disabled by default.
+  VLOG(1) << "This is a log message with verbosity == 1";
+  VLOG(2) << "This is a log message with verbosity == 2";
+
+  // Verbose messages, can be enabled only in debug build.
+  DVLOG(1) << "This is a DEBUG log message with verbosity == 1";
+  DVLOG(2) << "This is a DEBUG log message with verbosity == 2";
+
+  // FATAL log message will terminate our app.
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("log-fatal")) {
+    LOG(FATAL) << "Program will terminate now!";
+  }
+}
+
 }  // namespace
 
 int main(int argc, const char* argv[]) {
@@ -47,6 +72,7 @@ int main(int argc, const char* argv[]) {
 
   StringsSample();
   CommandLineSample();
+  LoggingSample();
 
   return 0;
 }
