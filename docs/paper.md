@@ -2,17 +2,14 @@
 
 ### Использование кодовой базы проекта Chromium в качестве SDK для разработки кроссплатформенных приложений.
 
-**TODO: Добавить ссылок на официальную документацию по проектам
-Chromium, GYP, GN, ninja, GTest, whatever и ссылки на инструкции по выкачиванию и сборке Chromium**
-
 Помимо вполне понятной официальной документации ([Chromium Wiki](https://www.chromium.org/developers/how-tos)), 
 существует достаточно статей о том, как получить исходный код и собрать проект Chromium ([например](https://habrahabr.ru/post/165193/)).
 
 Так что я не стану останавливаться на этом, будем считать, что у нас уже есть depot_tools в нашем $PATH (нужны утилиты gn и ninja), исходный код получен и готов к сборке. Сборка всего проекта Chromium нам не понадобится, по крайней мере на первом этапе.
 
-Я же хотел рассказать о том, как на основе этого кода можно создавать приложения на %%C++%%,
+Я же хотел рассказать о том, как на основе этого кода можно создавать приложения на ```C++```,
 способные компилироваться и выполняться на нескольких операционных системах и архитектурах.
-Конечно, для этой цели уже существуют библиотеки, такие как ((http://www.qt.io Qt)) и ((www.boost.org/ boost)).
+Конечно, для этой цели уже существуют библиотеки, такие как [Qt](http://www.qt.io) и [boost](www.boost.org/).
 Но именно поэтому данная статья относится к разделу 'ненормальное программирование', 
 никто всерьез не рассматривает код Chromium как основу для кроссплатформенного приложения.
 
@@ -40,7 +37,7 @@ Chromium, GYP, GN, ninja, GTest, whatever и ссылки на инструкц�
 
 Давайте начнем с точки входа нашего приложения и базового конфига для системы сборки.
 
-%%(diff)
+```diff
 diff --git a/sample_app/sample_app.cc b/sample_app/sample_app.cc
 new file mode 100644
 index 0000000..4cce7f6
@@ -65,7 +62,7 @@ index 0000000..af23149
 +    "sample_app.cc",
 +  ]
 +}
-%%
+```
 
 Chromium использует такие инструменты, как [GYP](https://gyp.gsrc.io) и [GN](https://chromium.googlesource.com/chromium/src/tools/gn/) для генерации [ninja](https://ninja-build.org)-файлов, 
 описывающих этапы сборки проекта. GN -- это следующий этап развития генератора 
@@ -77,17 +74,15 @@ ninja-файлов, он гораздо быстрее GYP, написан на 
 Выглядит вполне понятно, не так ли?
 Хотя все небольшие файлы конфигов выглядят понятно, хоть CMake, хоть Makefile =)
 
-**TODO: Приложить patch для правки src/BUILD.gn чтобы прописать туда наш конфиг.**
-
 После добавления нашего таргета в общий билд-конфиг, мы можем собрать наше приложение.
-%%(bash)
+```bash
 $ gn gen --args=is_debug=true out/gn
 $ ninja -C out/gn sample_app
-%%
+```
 
 Давайте добавим консольный вывод и покажем, что как минимум доступна стандартная библиотека С++.
 
-%%(diff)
+```diff
 diff --git a/sample_app/sample_app.cc b/sample_app/sample_app.cc
 index 4cce7f6..a5e741b 100644
 --- a/sample_app/sample_app.cc
@@ -102,26 +97,39 @@ index 4cce7f6..a5e741b 100644
 +
    return 0;
  }
-%%
+```
 
 Повторив команду для сборки и запустив приложение, мы должны увидеть наше приветствие:
-%%(bash)
+```bash
 $ ninja -C out/gn sample_app
 $ ./out/gn/sample_app
 Hello from SampleApp!
-%%
+```
 
 Одним из базовых классов в любом приложении является строка.
 Chromium использует класс строки из библиотеки C++, std::basic_string<>, в 
-большей степени используются UTF16 строки (base::string16, это typedef для std::basic_string<char16>) 
-и легковесный string-view класс base::StringPiece<>.
+большей степени используются UTF16 строки ([base::string16](https://code.google.com/p/chromium/codesearch#chromium/src/base/strings/string16.h&q=base::string16&sq=package:chromium&type=cs&l=135), это typedef для std::basic_string<char16>) и легковесный string-view класс [base::StringPiece](https://code.google.com/p/chromium/codesearch#chromium/src/base/strings/string_piece.h&sq=package:chromium&type=cs&l=163).
 Давайте попробуем использовать строки и преобразования между разными кодировками.
 
-%%(diff)
-diff --git a/sample_app/sample_app.cc b/sample_app/sample_app.cc
+```diff
+diff --git a/src/BUILD.gn b/src/BUILD.gn
+index b2fbea5..9f6d5c3 100644
+--- a/src/BUILD.gn
++++ b/src/BUILD.gn
+@@ -5,4 +5,8 @@ executable("sample_app") {
+   sources = [
+     "sample_app.cc",
+   ]
++
++  deps = [
++    "//base"
++  ]
+ }
+
+diff --git a/src/sample_app.cc b/src/sample_app.cc
 index a5e741b..accc0fa 100644
---- a/sample_app/sample_app.cc
-+++ b/sample_app/sample_app.cc
+--- a/src/sample_app.cc
++++ b/src/sample_app.cc
 @@ -1,8 +1,24 @@
  #include <iostream>
  #include <string>
@@ -147,22 +155,27 @@ index a5e741b..accc0fa 100644
 +
    return 0;
  }
-%%
+```
 
-Команда сборки не меняется, как и билд конфиг.
+Мы добавили нужную нам теперь зависимость от таргета //base в BUILD.gn и смогли использовать нужные функции.
 Как видите, ничего сложного, за всю работу под капотом отвечает библиотека [ICU](http://site.icu-project.org),
 которая доступна нам без каких-либо дополнительных действий.
+Команда для сборки не меняется,
+```bash
+$ ninja -C out/gn sample_app
+```
+Ninja автоматически перестроит файлы при изменении .gn конфига.
 
 От строк можно перейти к командной строке приложения и ее разбору.
 Пожалуйста, учитывайте, что весь код классов в src/base писался ровно под те нужды,
 что были у команды Chromium. Если вам покажется странным, что какого-то функционала нет, 
 или наоборот, что написан избыточный код, учитывайте это.
 
-%%(diff)
-diff --git a/sample_app/sample_app.cc b/sample_app/sample_app.cc
-index accc0fa..d2f9a2a 100644
---- a/sample_app/sample_app.cc
-+++ b/sample_app/sample_app.cc
+```diff
+diff --git a/src/sample_app.cc b/src/sample_app.cc
+index accc0fa..acfbb79 100644
+--- a/src/sample_app.cc
++++ b/src/sample_app.cc
 @@ -1,6 +1,9 @@
  #include <iostream>
  #include <string>
@@ -173,17 +186,29 @@ index accc0fa..d2f9a2a 100644
  #include "base/strings/utf_string_conversions.h"
  
  namespace {
-@@ -13,12 +16,25 @@ void StringsSample() {
+@@ -13,12 +16,37 @@ void StringsSample() {
              << std::endl;
  }
  
 +void CommandLineSample() {
 +  using base::CommandLine;
 +
++  DCHECK(CommandLine::ForCurrentProcess())
++      << "Command line for process wasn't initialized.";
++
 +  const CommandLine& command_line = *CommandLine::ForCurrentProcess();
 +
 +  std::cout << "Application program name is "
 +            << command_line.GetProgram().AsUTF8Unsafe() << std::endl;
++
++  if (command_line.HasSwitch("bool-switch")) {
++    std::cout << "Detected a boolean switch!" << std::endl;
++  }
++
++  std::string string_switch = command_line.GetSwitchValueASCII("string-switch");
++  if (!string_switch.empty()) {
++    std::cout << "Got a string switch value: " << string_switch << std::endl;
++  }
 +}
 +
  }  // namespace
@@ -199,35 +224,117 @@ index accc0fa..d2f9a2a 100644
  
    return 0;
  }
-%%
 
-%%(diff)
-diff --git a/sample_app/sample_app.cc b/sample_app/sample_app.cc
-index d2f9a2a..86c1bb7 100644
---- a/sample_app/sample_app.cc
-+++ b/sample_app/sample_app.cc
-@@ -19,6 +19,9 @@ void StringsSample() {
- void CommandLineSample() {
-   using base::CommandLine;
- 
-+  DCHECK(CommandLine::ForCurrentProcess())
-+      << "Command line for process wasn't initialized.";
-+
-   const CommandLine& command_line = *CommandLine::ForCurrentProcess();
- 
-   std::cout << "Application program name is "
-%%
+```
+
+Теперь можем запустить собранную программу с ключами и посмотреть на вывод:
+```bash
+$ ../out/gn/sample_app --bool-switch --string-switch=SOME_VALUE
+Hello from SampleApp!
+This is a wide string.
+This is an UTF8 string.
+This is an UTF8 string converted to UTF16 and back.
+Application program name is ../out/gn/sample_app
+Detected a boolean switch!
+Got a string switch value: SOME_VALUE
+```
 
 Здесь продемонстрированы одновременно классы для работы с командной строкой, абстракцией
 для файловых путей и немного с библиотекой логгинга.
-Так, вызов [CHECK()](https://code.google.com/p/chromium/codesearch#chromium/src/base/logging.h&q=CHECK&sq=package:chromium&type=cs&l=476) проверит результат вызова [CommandLine::Init](https://code.google.com/p/chromium/codesearch#chromium/src/base/command_line.h&q=CommandLine::Init&sq=package:chromium&type=cs&l=80) и в случае неудачи выведет в лог
-строку "Failed to parse a command line argument.". При этом в случае успеха 
-`operator <<` для потока логирования не будет вызван и накладных затрат на печать не будет.
-Это важно, если такое логирование связано с вызовом нетривиальных функций.
+Так, вызов [CHECK()](https://code.google.com/p/chromium/codesearch#chromium/src/base/logging.h&q=CHECK&sq=package:chromium&type=cs&l=476) проверит результат вызова [CommandLine::Init](https://code.google.com/p/chromium/codesearch#chromium/src/base/command_line.h&q=CommandLine::Init&sq=package:chromium&type=cs&l=80) и в случае неудачи выведет в лог строку "Failed to parse a command line argument." и завершит приложение.
+При этом в случае успеха `operator <<` для потока логирования не будет вызван и накладных затрат на печать не будет. Это важно, если такое логирование связано с вызовом нетривиальных функций.
+
 Проверка [DCHECK (debug check)](https://code.google.com/p/chromium/codesearch#chromium/src/base/logging.h&q=DCHECK&sq=package:chromium&type=cs&l=663) будет выполнена только в отладочной сборке и не будет 
 влиять на выполнение программы в релизе.
 
-**TODO: Больше написать про LOG() и показать в действии.**
+Продолжая говорить о логе программы, рассмотрим следующий код, включающий и использующий логирование
+
+```diff
+diff --git a/src/sample_app.cc b/src/sample_app.cc
+index acfbb79..76aa0c6 100644
+--- a/src/sample_app.cc
++++ b/src/sample_app.cc
+@@ -37,6 +37,31 @@ void CommandLineSample() {
+   }
+ }
+ 
++void LoggingSample() {
++  logging::LoggingSettings settings;
++
++  // Set log to STDERR on POSIX or to OutputDebugString on Windows.
++  settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG;
++  CHECK(logging::InitLogging(settings));
++
++  // Log messages visible by default.
++  LOG(INFO) << "This is INFO log message.";
++  LOG(WARNING) << "This is WARNING log message.";
++
++  // Verbose log messages, disabled by default.
++  VLOG(1) << "This is a log message with verbosity == 1";
++  VLOG(2) << "This is a log message with verbosity == 2";
++
++  // Verbose messages, can be enabled only in debug build.
++  DVLOG(1) << "This is a DEBUG log message with verbosity == 1";
++  DVLOG(2) << "This is a DEBUG log message with verbosity == 2";
++
++  // FATAL log message will terminate our app.
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch("log-fatal")) {
++    LOG(FATAL) << "Program will terminate now!";
++  }
++}
++
+ }  // namespace
+ 
+ int main(int argc, const char* argv[]) {
+@@ -47,6 +72,7 @@ int main(int argc, const char* argv[]) {
+ 
+   StringsSample();
+   CommandLineSample();
++  LoggingSample();
+ 
+   return 0;
+ }
+```
+
+Здесь мы во-первых, инициализируем подсистему логирования для записи в STDERR, а затем 
+выводим сообщения в лог с разными уровнями.
+Последнее же сообщение с уровнем FATAL завершит выполнение программы, и выведет стек-трейс, если сможет.
+Проверим работу программы с заданным уровнем логирования (приведен вывод на Mac OS X):
+
+```bash
+$ ../out/gn/sample_app --v=2 --log-fatal
+Hello from SampleApp!
+This is a wide string.
+This is an UTF8 string.
+This is an UTF8 string converted to UTF16 and back.
+Application program name is ../out/gn/sample_app
+[0303/202541:INFO:sample_app.cc(51)] This is INFO log message.
+[0303/202541:WARNING:sample_app.cc(52)] This is WARNING log message.
+[0303/202541:VERBOSE1:sample_app.cc(55)] This is a log message with verbosity == 1
+[0303/202541:VERBOSE2:sample_app.cc(56)] This is a log message with verbosity == 2
+[0303/202541:VERBOSE1:sample_app.cc(59)] This is a DEBUG log message with verbosity == 1
+[0303/202541:VERBOSE2:sample_app.cc(60)] This is a DEBUG log message with verbosity == 2
+[0303/202541:FATAL:sample_app.cc(64)] Program will terminate now!
+0   sample_app                          0x000000010f276def _ZN4base5debug10StackTraceC2Ev + 47
+1   sample_app                          0x000000010f276f93 _ZN4base5debug10StackTraceC1Ev + 35
+2   sample_app                          0x000000010f2b53a0 _ZN7logging10LogMessageD2Ev + 80
+3   sample_app                          0x000000010f2b2c43 _ZN7logging10LogMessageD1Ev + 35
+4   sample_app                          0x000000010f235072 _ZN12_GLOBAL__N_113LoggingSampleEv + 1346
+5   sample_app                          0x000000010f2342e0 main + 288
+6   sample_app                          0x000000010f2341b4 start + 52
+7   ???                                 0x0000000000000003 0x0 + 3
+
+Trace/BPT trap: 5
+
+$ ../out/gn/sample_app
+Hello from SampleApp!
+This is a wide string.
+This is an UTF8 string.
+This is an UTF8 string converted to UTF16 and back.
+Application program name is ../out/gn/sample_app
+[0303/203145:INFO:sample_app.cc(51)] This is INFO log message.
+[0303/203145:WARNING:sample_app.cc(52)] This is WARNING log message.
+```
 
 Также видно, что есть довольно жесткое, но полезное правило -- на каждую сущность/класс 
 есть один файл, имя которого соответствует файлам с кодом. Так, класс FilePath нужно искать
@@ -236,11 +343,11 @@ index d2f9a2a..86c1bb7 100644
 
 Давайте рассмотрим более сложный код, например, для перечисления содержимого текущей директории.
 
-%%(diff)
-diff --git a/sample_app/sample_app.cc b/sample_app/sample_app.cc
-index 86c1bb7..8bd3321 100644
---- a/sample_app/sample_app.cc
-+++ b/sample_app/sample_app.cc
+```diff
+diff --git a/src/sample_app.cc b/src/sample_app.cc
+index 76aa0c6..69aa8a5 100644
+--- a/src/sample_app.cc
++++ b/src/sample_app.cc
 @@ -2,7 +2,9 @@
  #include <string>
  
@@ -251,8 +358,8 @@ index 86c1bb7..8bd3321 100644
  #include "base/logging.h"
  #include "base/strings/utf_string_conversions.h"
  
-@@ -28,6 +30,24 @@ void CommandLineSample() {
-             << command_line.GetProgram().AsUTF8Unsafe() << std::endl;
+@@ -62,6 +64,24 @@ void LoggingSample() {
+   }
  }
  
 +void FilesSample() {
@@ -263,7 +370,7 @@ index 86c1bb7..8bd3321 100644
 +            << current_dir.AsUTF8Unsafe() << std::endl;
 +
 +  base::FileEnumerator file_enumerator(
-+      current_dir, false, // not recursive
++      current_dir, false,
 +      base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES);
 +  for (base::FilePath name = file_enumerator.Next(); !name.empty();
 +       name = file_enumerator.Next()) {
@@ -276,44 +383,46 @@ index 86c1bb7..8bd3321 100644
  }  // namespace
  
  int main(int argc, const char* argv[]) {
-@@ -38,6 +58,7 @@ int main(int argc, const char* argv[]) {
- 
+@@ -73,6 +93,7 @@ int main(int argc, const char* argv[]) {
    StringsSample();
    CommandLineSample();
+   LoggingSample();
 +  FilesSample();
  
    return 0;
  }
-%%
+```
 
 Как видно, использование класса [base::FileEnumerator](https://code.google.com/p/chromium/codesearch#chromium/src/base/files/file_enumerator.h&q=base::FileEnumerator&sq=package:chromium&type=cs&l=40) не представляет особого труда, и в результате мы смогли получить список файлов в текущей директории:
 
-%%(bash)
+```bash
 $ ninja -C out/gn sample_app
-$ (cd sample_app/ && ../out/gn/sample_app)
+$ (cd src/ && ../../out/gn/sample_app)
 Hello from SampleApp!
 This is a wide string.
 This is an UTF8 string.
 This is an UTF8 string converted to UTF16 and back.
-Application program name is ../out/gn/sample_app
-Enumerating files and directories in path: /Users/iceman/work/chromium/src/sample_app
-[file] /Users/iceman/work/chromium/src/sample_app/BUILD.gn
-[file] /Users/iceman/work/chromium/src/sample_app/sample_app.cc
-%%
+Application program name is ../../out/gn/sample_app
+[0303/203629:INFO:sample_app.cc(51)] This is INFO log message.
+[0303/203629:WARNING:sample_app.cc(52)] This is WARNING log message.
+Enumerating files and directories in path: /Users/username/chromium/src/sample_app/src
+[file] /Users/username/chromium/src/sample_app/src/BUILD.gn
+[file] /Users/username/chromium/src/sample_app/src/sample_app.cc
+```
 
 Обычно программа состоит не только из файла main.cc, так что давайте добавим 
 самостоятельный модуль для некоего API в наш проект. Не так важна сейчас 
 суть кода в новом модуле, это же демонстрация, можно всегда возвращать true к примеру.
 Создадим заголовочный файл и файл с реализацией нашей новой функции:
 
-%%(diff)
-diff --git a/sample_app/sample_api.cc b/sample_app/sample_api.cc
+```diff
+diff --git a/src/sample_api.cc b/src/sample_api.cc
 new file mode 100644
-index 0000000..0f8ac4d
+index 0000000..ba0cf1a
 --- /dev/null
-+++ b/sample_app/sample_api.cc
++++ b/src/sample_api.cc
 @@ -0,0 +1,9 @@
-+#include "sample_app/sample_api.h"
++#include "sample_app/src/sample_api.h"
 +
 +namespace sample_api {
 +
@@ -322,11 +431,12 @@ index 0000000..0f8ac4d
 +}
 +
 +}  // namespace sample_api
-diff --git a/sample_app/sample_api.h b/sample_app/sample_api.h
+
+diff --git a/src/sample_api.h b/src/sample_api.h
 new file mode 100644
 index 0000000..26b39cb
 --- /dev/null
-+++ b/sample_app/sample_api.h
++++ b/src/sample_api.h
 @@ -0,0 +1,11 @@
 +#ifndef SAMPLE_APP_SAMPLE_API_H_
 +#define SAMPLE_APP_SAMPLE_API_H_
@@ -339,15 +449,15 @@ index 0000000..26b39cb
 +}  // namespace sample_api
 +
 +#endif  // SAMPLE_APP_SAMPLE_API_H_
-%%
+```
 
 После этого можно написать юнит-тесты на нашу функцию.
 Сделаем это и добавим новые файлы в наш проект.
-%%(diff)
-diff --git a/sample_app/BUILD.gn b/sample_app/BUILD.gn
-index af23149..a37e569 100644
---- a/sample_app/BUILD.gn
-+++ b/sample_app/BUILD.gn
+```diff
+diff --git a/src/BUILD.gn b/src/BUILD.gn
+index 9f6d5c3..2c392ef 100644
+--- a/src/BUILD.gn
++++ b/src/BUILD.gn
 @@ -1,12 +1,30 @@
  # SampleApp
  
@@ -359,12 +469,12 @@ index af23149..a37e569 100644
      "sample_app.cc",
 +    "sample_api.cc",
 +    "sample_api.h",
-   ]
- 
-   deps = [
-     "//base",
-   ]
- }
++  ]
++
++  deps = [
++    "//base",
++  ]
++}
 +
 +test("sample_app_unittests") {
 +  sources = [
@@ -372,20 +482,22 @@ index af23149..a37e569 100644
 +    "sample_api.cc",
 +    "sample_api.h",
 +    "sample_api_unittest.cc",
-+  ]
-+
-+  deps = [
+   ]
+ 
+   deps = [
+-    "//base"
 +    "//base/test:run_all_unittests",
 +    "//testing/gtest",
-+  ]
-+}
-diff --git a/sample_app/sample_api_unittest.cc b/sample_app/sample_api_unittest.cc
+   ]
+ }
+
+diff --git a/src/sample_api_unittest.cc b/src/sample_api_unittest.cc
 new file mode 100644
-index 0000000..910b368
+index 0000000..535ef91
 --- /dev/null
-+++ b/sample_app/sample_api_unittest.cc
++++ b/src/sample_api_unittest.cc
 @@ -0,0 +1,15 @@
-+#include "sample_app/sample_api.h"
++#include "sample_app/src/sample_api.h"
 +
 +#include "testing/gtest/include/gtest/gtest.h"
 +
@@ -400,7 +512,7 @@ index 0000000..910b368
 +}  // namespace
 +
 +}  // namespace sample_api
-%%
+```
 
 Использовать библиотеку GTest довольно несложно, но нужно добавить в проект 
 зависимость "//testing/gtest", а для удобства еще и "//base/test:run_all_unittests".
@@ -408,12 +520,12 @@ index 0000000..910b368
 за это будет отвечать код в src/base/test/run_all_unittests.cc.
 
 Перегенерируем ninja файлы для проекта и соберем наши тесты:
-%%(bash)
+```bash
 $ ninja -C out/gn sample_app_unittests
-%%
+```
 
 Запустим тесты:
-%%(bash)
+```bash
 $ ./out/gn/sample_app_unittests 
 IMPORTANT DEBUGGING NOTE: batches of tests are run inside their
 own process. For debugging a test inside a debugger, use the
@@ -424,24 +536,24 @@ Using 8 parallel jobs.
 [1/1] SampleApi.ApiFunctionTest (0 ms)
 SUCCESS: all tests passed.
 Tests took 0 seconds.
-%%
+```
 
 Отлично, все тесты прошли!
 После того, как тесты написаны, а код нашего API добавлен в проект, можно его использовать.
-%%(diff)
-diff --git a/sample_app/sample_app.cc b/sample_app/sample_app.cc
-index 8bd3321..07bf9d2 100644
---- a/sample_app/sample_app.cc
-+++ b/sample_app/sample_app.cc
+```diff
+diff --git a/src/sample_app.cc b/src/sample_app.cc
+index 69aa8a5..f4ef100 100644
+--- a/src/sample_app.cc
++++ b/src/sample_app.cc
 @@ -7,6 +7,7 @@
  #include "base/files/file_util.h"
  #include "base/logging.h"
  #include "base/strings/utf_string_conversions.h"
-+#include "sample_app/sample_api.h"
++#include "sample_app/src/sample_api.h"
  
  namespace {
  
-@@ -48,6 +49,12 @@ void FilesSample() {
+@@ -82,6 +83,12 @@ void FilesSample() {
    }
  }
  
@@ -454,15 +566,15 @@ index 8bd3321..07bf9d2 100644
  }  // namespace
  
  int main(int argc, const char* argv[]) {
-@@ -59,6 +66,7 @@ int main(int argc, const char* argv[]) {
-   StringsSample();
+@@ -94,6 +101,7 @@ int main(int argc, const char* argv[]) {
    CommandLineSample();
+   LoggingSample();
    FilesSample();
 +  UseSampleAPI();
  
    return 0;
  }
-%%
+```
 
 Вот так просто.
 В итоге наша программа может работать с разными кодировками, с файловой системой,
