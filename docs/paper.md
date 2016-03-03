@@ -5,9 +5,7 @@
 Помимо вполне понятной официальной документации ([Chromium Wiki](https://www.chromium.org/developers/how-tos)), 
 существует достаточно статей о том, как получить исходный код и собрать проект Chromium ([например](https://habrahabr.ru/post/165193/)).
 
-Так что я не стану останавливаться на этом, будем считать, что у нас уже есть depot_tools в нашем $PATH (нужны утилиты gn и ninja), исходный код получен и готов к сборке. Сборка всего проекта Chromium нам не понадобится, по крайней мере на первом этапе.
-
-Я же хотел рассказать о том, как на основе этого кода можно создавать приложения на ```C++```,
+Я же хотел рассказать о том, как на основе этого кода можно создавать приложения на C++,
 способные компилироваться и выполняться на нескольких операционных системах и архитектурах.
 Конечно, для этой цели уже существуют библиотеки, такие как [Qt](http://www.qt.io) и [boost](www.boost.org/).
 Но именно поэтому данная статья относится к разделу 'ненормальное программирование', 
@@ -35,25 +33,42 @@
 Нужно учитывать то, что кодовая база постоянно меняется, какие-то части больше подвержены 
 измемениям, какие то меньше. Это все же совсем не фиксированное публичное API.
 
+Не стану останавливаться на том, как скачать код и настроить окружение, все это подробно описано в статьях по приведеным ссылкам. Будем считать, что у нас уже есть depot_tools в нашем $PATH (нужны утилиты gn и ninja), исходный код получен и готов к сборке в директории chromium/. Сборка всего проекта Chromium нам не понадобится, по крайней мере на первом этапе.
+
+Создадим в chromium/src директории нашего приложения, sample_app и sample_app/src.
+В sample_app/src будет размещен код приложения, а все команды я буду приводить относительно текущей директории chromium/src/sample_app.
+
+Чтобы получить сразу весь код приложения из статьи, можно склонировать репозиторий
+https://github.com/dreamer-dead/chromium-sample-app.git
+
+```bash
+$ pwd
+/Users/username/chromium/src
+
+$ git clone https://github.com/dreamer-dead/chromium-sample-app.git sample_app
+
+$ cd sample_app/
+```
+
 Давайте начнем с точки входа нашего приложения и базового конфига для системы сборки.
 
 ```diff
-diff --git a/sample_app/sample_app.cc b/sample_app/sample_app.cc
+diff --git a/src/sample_app.cc b/src/sample_app.cc
 new file mode 100644
 index 0000000..4cce7f6
 --- /dev/null
-+++ b/sample_app/sample_app.cc
++++ b/src/sample_app.cc
 @@ -0,0 +1,3 @@
 +int main() {
 +  return 0;
 +}
 
-diff --git a/sample_app/BUILD.gn b/sample_app/BUILD.gn
+diff --git a/src/BUILD.gn b/src/BUILD.gn
 new file mode 100644
-index 0000000..af23149
+index 0000000..b2fbea5
 --- /dev/null
-+++ b/sample_app/BUILD.gn
-@@ -0,0 +1,12 @@
++++ b/src/BUILD.gn
+@@ -0,0 +1,8 @@
 +# SampleApp
 +
 +executable("sample_app") {
@@ -67,26 +82,51 @@ index 0000000..af23149
 Chromium использует такие инструменты, как [GYP](https://gyp.gsrc.io) и [GN](https://chromium.googlesource.com/chromium/src/tools/gn/) для генерации [ninja](https://ninja-build.org)-файлов, 
 описывающих этапы сборки проекта. GN -- это следующий этап развития генератора 
 ninja-файлов, он гораздо быстрее GYP, написан на С++ вместо Python и его синтаксис
-более дружелюбен для человека. Так что будем исполтьзовать именно его, хотя на 
+более дружелюбен для человека. Так что будем использовать именно его, хотя на 
 данный момент Chromium поддерживает сборку и с GYP тоже.
-В своем билд-конфиге sample_app/BUILD.gn задаем имя таргета, итоговое имя исполняемого файла и 
+В своем билд-конфиге sample_app/src/BUILD.gn задаем имя таргета, итоговое имя исполняемого файла и 
 перечислим файлы с исходным кодом.
 Выглядит вполне понятно, не так ли?
 Хотя все небольшие файлы конфигов выглядят понятно, хоть CMake, хоть Makefile =)
 
-После добавления нашего таргета в общий билд-конфиг, мы можем собрать наше приложение.
-```bash
-$ gn gen --args=is_debug=true out/gn
-$ ninja -C out/gn sample_app
+Для того, чтобы GN увидел конфиг нашего проекта, нужно сослаться на него в корневом файле 
+chromium/src/BUILD.gn, наложив такой патч
+```diff
+diff --git a/BUILD.gn b/BUILD.gn
+index ce698a7..67f8219 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -886,3 +886,7 @@ group("chromium_builder_perf") {
+     }
+   }
+ }
++
++group("sample_app") {
++  deps = [ "//sample_app/src:sample_app" ]
++}
 ```
 
-Давайте добавим консольный вывод и покажем, что как минимум доступна стандартная библиотека С++.
+Если был сделан чекаут репозитория, то для этого можно выполнить
+```bash
+$ (cd .. && git apply sample_app/src/root_BUILD_gn.patch)
+```
+
+После добавления нашего таргета в общий билд-конфиг, мы можем собрать наше приложение.
+```bash
+$ gn gen --args=is_debug=true --root=../ ../out/gn
+$ ninja -C ../out/gn sample_app
+```
+
+Таким образом, мы указали, что собираем отладочную сборку, генерируем ninja-файлы сборки в 
+директории chromium/src/out/gn/ и корневой билд-конфиг располагается в chromium/src/
+
+Давайте добавим консольный вывод в наше приложение и покажем, что как минимум нам доступна стандартная библиотека С++.
 
 ```diff
-diff --git a/sample_app/sample_app.cc b/sample_app/sample_app.cc
+diff --git a/src/sample_app.cc b/src/sample_app.cc
 index 4cce7f6..a5e741b 100644
---- a/sample_app/sample_app.cc
-+++ b/sample_app/sample_app.cc
+--- a/src/sample_app.cc
++++ b/src/sample_app.cc
 @@ -1,3 +1,8 @@
 -int main() {
 +#include <iostream>
@@ -101,8 +141,8 @@ index 4cce7f6..a5e741b 100644
 
 Повторив команду для сборки и запустив приложение, мы должны увидеть наше приветствие:
 ```bash
-$ ninja -C out/gn sample_app
-$ ./out/gn/sample_app
+$ ninja -C ../out/gn sample_app
+$ ../out/gn/sample_app
 Hello from SampleApp!
 ```
 
@@ -162,7 +202,7 @@ index a5e741b..accc0fa 100644
 которая доступна нам без каких-либо дополнительных действий.
 Команда для сборки не меняется,
 ```bash
-$ ninja -C out/gn sample_app
+$ ninja -C ../out/gn sample_app
 ```
 Ninja автоматически перестроит файлы при изменении .gn конфига.
 
@@ -396,7 +436,7 @@ index 76aa0c6..69aa8a5 100644
 Как видно, использование класса [base::FileEnumerator](https://code.google.com/p/chromium/codesearch#chromium/src/base/files/file_enumerator.h&q=base::FileEnumerator&sq=package:chromium&type=cs&l=40) не представляет особого труда, и в результате мы смогли получить список файлов в текущей директории:
 
 ```bash
-$ ninja -C out/gn sample_app
+$ ninja -C ../out/gn sample_app
 $ (cd src/ && ../../out/gn/sample_app)
 Hello from SampleApp!
 This is a wide string.
@@ -521,12 +561,12 @@ index 0000000..535ef91
 
 Перегенерируем ninja файлы для проекта и соберем наши тесты:
 ```bash
-$ ninja -C out/gn sample_app_unittests
+$ ninja -C ../out/gn sample_app_unittests
 ```
 
 Запустим тесты:
 ```bash
-$ ./out/gn/sample_app_unittests 
+$ ../out/gn/sample_app_unittests 
 IMPORTANT DEBUGGING NOTE: batches of tests are run inside their
 own process. For debugging a test inside a debugger, use the
 --gtest_filter=<your_test_name> flag along with
