@@ -1,0 +1,12 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index ce698a7..67f8219 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -886,3 +886,7 @@ group("chromium_builder_perf") {
+     }
+   }
+ }
++
++group("sample_app") {
++  deps = [ "//sample_app/src:sample_app" ]
++}
