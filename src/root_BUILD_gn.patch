@@ -1,10 +1,10 @@
 diff --git a/BUILD.gn b/BUILD.gn
-index ce698a7..67f8219 100644
+index 0fa2013..729157d 100644
 --- a/BUILD.gn
 +++ b/BUILD.gn
-@@ -886,3 +886,7 @@ group("chromium_builder_perf") {
-     }
-   }
+@@ -906,3 +906,7 @@ template("assert_valid_out_dir") {
+ assert_valid_out_dir("_unused") {
+   actual_sources = [ "$root_build_dir/foo" ]
  }
 +
 +group("sample_app") {
